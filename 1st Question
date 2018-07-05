@@ -1,0 +1,103 @@
+# Polio
+
+#Read in the Nigeria extracted data 
+dat_subset = read.csv("nigeria_childrecode_dhs2008.csv")
+#Read in field descriptions
+field.descriptions <- read.csv("field_descriptions.csv")
+
+
+# Identify three socio-economic indicators which strongly associate with a child older than 12 months 
+# having received no polio vaccination through mass campaigns (immunization plus days, i.e. IPDs, or national
+# immunization days, NIDs), preferably the “strongest” by some measure.  Variable h35 is the general intended
+# target of this exercise, but other variables may of interest of well.
+# Select for desired indicators and children greater than a year of age
+#H35 do we want it? Yes all entries
+#h36a = wants Nos 
+#h36b = want all entries 
+#h36c -- select against 2006/5-7
+#h36d -- select against 2007 1, 3-9
+#h36e -- select againts 2008 1-2, 4
+
+#Dealing with h36c
+children <- subset(dat_subset, subset = h0m != c(5, 6, 7) & h0y != 2006 & b8 >= 1 & 
+                     h4m != c(5,6,7) & h4y != 2006 &
+                     h6m != c(5,6,7) & h6y != 2006 &
+                     h8m != c(5,6,7) & h8y != 2006)
+
+#Dealing with h36e
+children <- subset(children, subset = h0m != c(1, 2, 4) & h0y != 2008 & 
+                     h4m != c(1, 2, 4) & h4y != 2008 &
+                     h6m != c(1, 2, 4) & h6y != 2008 &
+                     h8m != c(1, 2, 4) & h8y != 2008)
+
+#Dealing with h36d
+children <- subset(children, subset = h0m != c(1, 3, 4, 5, 6, 7, 8, 9) & h0y != 2007 & 
+                     h4m != c(1, 3, 4, 5, 6, 7, 8, 9) & h4y != 2007 &
+                     h6m != c(1, 3, 4, 5, 6, 7, 8, 9) & h6y != 2007 &
+                     h8m != c(1, 3, 4, 5, 6, 7, 8, 9) & h8y != 2007)
+
+
+# children <- subset(children, select = c("h0", "h0m", "h0y", 
+#                                         "h4", "h4m", "h4y",
+#                                         "h6", "h6m", "h6y", 
+#                                         "h8", "h8m", "h8y"))
+
+#The problem here is that h36c-e may or may not contain children that were vaccinated for polio during a campaign. These need to be filtered out. 
+#So we want to remove children that were vaccinated for POLIO during the campaign while leaving children that used the campaign for 
+#non-polio vaccinations. 
+# children <- subset(dat_subset)
+# 
+# 
+# children <- subset(dat_subset, subset = c(b8 >= 1)
+#                    , select = c(h35, v190, v025, h1, v131))
+
+#The goal is to clean up h35 (any vaccinations in last 2 years part of campaign) such that it is a dichotomous varible that can be modelled uing logistic regression 
+#Step 1 remove empty cells (NAs) from h35
+children <- children[complete.cases(children[ , "h35"]),]
+
+#Step2 make dichotomous
+#2a Replace alternative negatives and affirmatives (besides no and yes) with no and yes. 
+children[children$h35 == "no vaccination in last 2 years", "h35"] <- "no"
+
+#2b remove any non yes/no answers
+children =subset(children, subset = c(h35 == "yes" | h35 == "no"))
+
+indicators = colnames(children)
+results = matrix(data = NA, nrow = 1, ncol = 129, dimnames = list("h35", indicators))
+h35data = factor(children$h35)
+
+# for (index in seq(1, 129, 1)){
+#     x = factor(children[, index])
+#     if (length(levels(x)) <= 1) {
+#         results[1,index] = NA
+#         next
+#     }
+#     temp = data.frame(h35, x)
+#     print(glm(formula = h35 ~ indicators[[index]], data = children, family = binomial()))
+# 
+#     }
+#Using a pvalue of .05 for significance 
+for (index in seq(1, 129, 1)){
+  x = factor(children[, index])
+  if (length(levels(x)) <= 1) {
+    results[1,index] = "NA"
+    next
+  }
+  temp = data.frame(h35data, x )
+  lm = glm(h35data ~ x, temp, family = binomial())
+  results[1, index] = anova(lm, test = "Chisq")$"Pr(>Chi)"[2]
+}
+
+#Find Transpose of results
+Tresults = t(results)
+View(Tresults) #Manually sort and select indicators using row names with lowest p values 
+
+#Choose 3 indicators
+FINAL <- subset(children, select = c(h35, sstate, v191, v107))
+#Create glm logistic model 
+lm_model <- glm(h35 ~ sstate + v191 + v107, data = FINAL, family = binomial())
+summary(lm_model)
+
+
+anova(lm_model, test = "Chisq")
+summary(lm_model)

@@ -1,0 +1,20 @@
+#Question2 Kano State
+
+Kano_State <- subset(children, subset = c(sstate=="kano"))
+
+FINAL2 <- subset(Kano_State, select = c(h35, sstate, v191, v107))
+
+lm_model2 <- glm(h35 ~ sstate + v191  + v107 , data = FINAL2, family = binomial())
+summary(lm_model2)
+
+
+
+#Question2 NW Region
+
+NW_Region  <- subset(dat_subset, subset = c(v024=="north west"))
+summary(NW_West)
+
+FINAL3 <- subset(NW_Region, select = c(h35, sstate, v191, v107))
+
+lm_model3 <- glm(h35 ~ sstate + v191  + v107 , data = FINAL3, family = binomial())
+summary(lm_model3)
